@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as Blockly from "blockly";
 import "blockly/blocks";
+import "./App.css";
 
 
 Blockly.Blocks["robot_start"] = {
@@ -43,15 +44,16 @@ Blockly.Blocks["robot_move_backward"] = {
 
 Blockly.Blocks["robot_set_speed"] = {
   init: function () {
-    this.appendDummyInput()
-      .appendField("set speed")
-      .appendField(new Blockly.FieldNumber(50, 0, 100), "SPEED")
-      .appendField("%");
+    this.appendValueInput("SPEED")
+      .setCheck("Number")
+      .appendField("set speed");
 
     this.setPreviousStatement(true, null);
     this.setNextStatement(true, null);
+
     this.setColour(160);
-    this.setTooltip("Set the robot speed percentage.");
+
+    this.setTooltip("Set robot movement speed.");
   },
 };
 
@@ -108,12 +110,24 @@ Blockly.Blocks["robot_stop"] = {
   },
 };
 
+Blockly.Blocks["robot_speed_value"] = {
+  init: function () {
+    this.appendDummyInput()
+      .appendField("speed value");
+
+    this.setOutput(true, "Number");
+    this.setColour(230);
+    this.setTooltip("Numeric speed value.");
+  },
+};
+
 
 function App() {
   const blocklyDiv = useRef(null);
   const workspaceRef = useRef(null);
   const [commandsOutput, setCommandsOutput] = useState([]);
   const [warningMessage, setWarningMessage] = useState("");
+  const [robotStatus, setRobotStatus] = useState("Idle");
     
 
   useEffect(() => {
@@ -193,6 +207,10 @@ function App() {
           kind: "block",
           type: "math_number",
         },
+        {
+          kind: "block",
+          type: "robot_speed_value",
+        },
       ],
     },
   ],
@@ -260,9 +278,26 @@ function App() {
       }
 
       if (currentBlock.type === "robot_set_speed") {
+        const speedBlock =
+          currentBlock.getInputTargetBlock("SPEED");
+
+        let speedValue = 0;
+
+        if (speedBlock) {
+          if (speedBlock.type === "math_number") {
+            speedValue = Number(
+            speedBlock.getFieldValue("NUM")
+          );
+          }
+
+          if (speedBlock.type === "robot_speed_value") {
+            speedValue = 75;
+          }
+        }
+
         commands.push({
           command: "set_speed",
-          speed: Number(currentBlock.getFieldValue("SPEED")),
+          speed: speedValue,
           unit: "percent",
         });
       }
@@ -344,6 +379,7 @@ const runProgram = () => {
 
   const commands = buildCommands();
   setCommandsOutput(commands);
+  setRobotStatus("Running");
 
   console.log("Sending commands to robot:", commands);
   // TODO: Send commands to robot via API or WebSocket
@@ -365,72 +401,61 @@ const emergencyStop = () => {
 
   setWarningMessage("Emergency stop command sent.");
   setCommandsOutput([command]);
+  setRobotStatus("Stopped");
   console.log("Sending emergency stop to robot:", command);
   // TODO: Send emergency stop to robot via API or WebSocket
 };
 
   return (
-  <div style={{ height: "100vh", width: "100vw" }}>
-    <div
-      style={{
-        height: "60px",
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        padding: "10px",
-        background: "#1f2937",
-      }}
-    >
-      <button onClick={generateCommands}>Generate Commands</button>
-      <button onClick={runProgram}>Run Program</button>
+  <div className="robot-app">
+    <div className="robot-toolbar">
+      <div className="robot-toolbar__actions">
+        <button className="touch-button touch-button--secondary" onClick={generateCommands}>
+          Generate
+        </button>
+        <button className="touch-button touch-button--primary" onClick={runProgram}>
+          Run Program
+        </button>
+      </div>
+
       <button
+        className="touch-button touch-button--danger"
         onClick={emergencyStop}
-        style={{
-          background: "#dc2626",
-          color: "white",
-          border: "none",
-          borderRadius: "4px",
-          fontWeight: 700,
-          padding: "8px 12px",
-        }}
       >
         Emergency Stop
       </button>
-      <button onClick={() => {
-        workspaceRef.current.clear();
-        setWarningMessage("");
-        setCommandsOutput([]);
-      }}>Clear</button>
+
+      <div className={`robot-status robot-status--${robotStatus.toLowerCase()}`} role="status">
+        <span className="robot-status__label">Status:</span>
+        <span className="robot-status__value">{robotStatus}</span>
+      </div>
+
+      <button
+        className="touch-button touch-button--secondary"
+        onClick={() => {
+          workspaceRef.current.clear();
+          setWarningMessage("");
+          setCommandsOutput([]);
+          setRobotStatus("Idle");
+        }}
+      >
+        Clear
+      </button>
+
       {warningMessage && (
-        <span
-          style={{
-            color: "#fecaca",
-            fontSize: "14px",
-            fontWeight: 600,
-          }}
-        >
+        <span className="robot-warning" role="status">
           {warningMessage}
         </span>
       )}
     </div>
 
-    <div style={{ display: "flex", height: "calc(100% - 60px)" }}>
+    <div className="robot-workspace">
       <div
         ref={blocklyDiv}
-        style={{ height: "100%", width: "70%" }}
+        className="robot-blockly"
       />
 
-      <pre
-        style={{
-          width: "30%",
-          margin: 0,
-          padding: "15px",
-          background: "#111827",
-          color: "white",
-          overflow: "auto",
-          fontSize: "14px",
-        }}
-      >
+      <pre className="robot-output">
         {JSON.stringify(commandsOutput, null, 2)}
       </pre>
     </div>
