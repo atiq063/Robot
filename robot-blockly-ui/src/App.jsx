@@ -4,6 +4,7 @@ import "blockly/blocks";
 import "./App.css";
 
 
+
 Blockly.Blocks["robot_start"] = {
   init: function () {
     this.appendDummyInput().appendField("START PROGRAM");
@@ -14,33 +15,55 @@ Blockly.Blocks["robot_start"] = {
   },
 };
 
-Blockly.Blocks["robot_move_forward"] = {
+Blockly.Blocks["robot_distance_sensor"] = {
   init: function () {
     this.appendDummyInput()
-      .appendField("move forward")
-      .appendField(new Blockly.FieldNumber(10, 0), "DISTANCE")
+      .appendField("distance sensor");
+
+    this.setOutput(true, "Number");
+
+    this.setColour(20);
+
+    this.setTooltip("Distance sensor reading.");
+  },
+};
+
+Blockly.Blocks["robot_move_forward"] = {
+  init: function () {
+    this.appendValueInput("DISTANCE")
+      .setCheck("Number")
+      .appendField("move forward");
+
+    this.appendDummyInput()
       .appendField("cm");
 
     this.setPreviousStatement(true, null);
     this.setNextStatement(true, null);
+
     this.setColour(160);
-    this.setTooltip("Move the robot forward by a given distance.");
+
+    this.setTooltip("Move robot forward.");
   },
 };
 
 Blockly.Blocks["robot_move_backward"] = {
   init: function () {
+    this.appendValueInput("DISTANCE")
+      .setCheck("Number")
+      .appendField("move backward");
+
     this.appendDummyInput()
-      .appendField("move backward")
-      .appendField(new Blockly.FieldNumber(10, 0), "DISTANCE")
       .appendField("cm");
 
     this.setPreviousStatement(true, null);
     this.setNextStatement(true, null);
+
     this.setColour(160);
-    this.setTooltip("Move the robot backward by a given distance.");
+
+    this.setTooltip("Move robot backward.");
   },
 };
+
 
 Blockly.Blocks["robot_set_speed"] = {
   init: function () {
@@ -134,6 +157,17 @@ function App() {
     const toolbox = {
       kind: "categoryToolbox",
       contents: [
+        {
+          kind: "category",
+          name: "Sensors",
+          colour: "#FF9800",
+          contents: [
+            {
+              kind: "block",
+              type: "robot_distance_sensor",
+            },
+          ],
+        },
         {
           kind: "category",
           name: "Motion",
@@ -262,20 +296,54 @@ function App() {
 
     while (currentBlock) {
       if (currentBlock.type === "robot_move_forward") {
-        commands.push({
-          command: "move_forward",
-          distance: Number(currentBlock.getFieldValue("DISTANCE")),
-          unit: "cm",
-        });
+      const distanceBlock =
+        currentBlock.getInputTargetBlock("DISTANCE");
+
+      let distanceValue = 0;
+
+      if (distanceBlock) {
+        if (distanceBlock.type === "math_number") {
+          distanceValue = Number(
+            distanceBlock.getFieldValue("NUM")
+          );
+        }
+
+        if (distanceBlock.type === "robot_distance_sensor") {
+          distanceValue = "sensor_distance";
+        }
       }
 
+      commands.push({
+        command: "move_forward",
+        distance: distanceValue,
+        unit: "cm",
+      });
+    } 
+
       if (currentBlock.type === "robot_move_backward") {
-        commands.push({
-          command: "move_backward",
-          distance: Number(currentBlock.getFieldValue("DISTANCE")),
-          unit: "cm",
-        });
+      const distanceBlock =
+        currentBlock.getInputTargetBlock("DISTANCE");
+
+      let distanceValue = 0;
+
+      if (distanceBlock) {
+        if (distanceBlock.type === "math_number") {
+          distanceValue = Number(
+          distanceBlock.getFieldValue("NUM")
+        );
+        }
+
+        if (distanceBlock.type === "robot_distance_sensor") {
+          distanceValue = "sensor_distance";
+        }
       }
+
+      commands.push({
+        command: "move_backward",
+        distance: distanceValue,
+        unit: "cm",
+      });
+    }
 
       if (currentBlock.type === "robot_set_speed") {
         const speedBlock =
